@@ -59,25 +59,24 @@ router.get("/:hootId", async (req, res) => {
 
 // First, we’ll retrieve the hoot we want to update from the database. We’ll do this using our Hoot model’s findById() method.
 // With our retrieved hoot, we need check that this user has permission to update the resource. We accomplish this using an if condition, comparing the hoot.author to _id of the user issuing the request (req.user._id). Remember, hoot.author contains the ObjectId of the user who created the hoot. If these values do not match, we will respond with a 403 status.
-// If the user has permission to update the resource, we’ll call upon our Hoot model’s findByIdAndUpdate() method.
-// When calling upon findByIdAndUpdate(), we pass in three arguments:
-// The first is the ObjectId (req.params.hootId) by which we will locate the hoot.
-// The second is the form data (req.body) that will be used to update the hoot document.
-// The third argument ({ new: true }) specifies that we want this method to return the updated document.
-// After updating the hoot, we’ll append a complete user object to the updatedHoot document (as we did in our create controller function).
-// As an extra layer of protection, we’ll use conditional rendering in our React app to limit access to this functionality so that only the author of a hoot can view the UI elements that allow editing.
 
 router.put("/:hootId", async (req, res) => {
   try {
     // Find the hoot:
     const hoot = await Hoot.findById(req.params.hootId);
 
+    // As an extra layer of protection, we’ll use conditional rendering in our React app to limit access to this functionality so that only the author of a hoot can view the UI elements that allow editing.
     // Check permissions:
     if (!hoot.author.equals(req.user._id)) {
       return res.status(403).send("You're not allowed to do that!");
     }
 
     // Update hoot:
+    // If the user has permission to update the resource, we’ll call upon our Hoot model’s findByIdAndUpdate() method.
+    // When calling upon findByIdAndUpdate(), we pass in three arguments:
+    // The first is the ObjectId (req.params.hootId) by which we will locate the hoot.
+    // The second is the form data (req.body) that will be used to update the hoot document.
+    // The third argument ({ new: true }) specifies that we want this method to return the updated document.
     const updatedHoot = await Hoot.findByIdAndUpdate(
       req.params.hootId,
       req.body,
@@ -85,10 +84,60 @@ router.put("/:hootId", async (req, res) => {
     );
 
     // Append req.user to the author property:
+    // After updating the hoot, we’ll append a complete user object to the updatedHoot document (as we did in our create controller function).
     updatedHoot._doc.author = req.user;
 
     // Issue JSON response:
     res.status(200).json(updatedHoot);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+// First, we’ll retrieve the hoot we want to delete from the database. We’ll do this using our Hoot model’s findById() method.
+// With our retrieved hoot, we need check that this user has permission to delete the resource. We accomplish this using an if condition, comparing the hoot.author to _id of the user issuing the request (req.user._id). Remember, hoot.author contains the ObjectId of the user who created the hoot. If these values do not match, we respond with a 403 Forbidden status.
+// If the user has permission to delete the resource, we call upon our Hoot model’s findByIdAndDelete() method.
+// The findByIdAndDelete() accepts an ObjectId (req.params.hootId), used to locate the hoot we wish to remove from the database.
+
+router.delete("/:hootId", async (req, res) => {
+  try {
+    const hoot = await Hoot.findById(req.params.hootId);
+
+    if (!hoot.author.equals(req.user._id)) {
+      return res.status(403).send("You're not allowed to do that!");
+    }
+
+    const deletedHoot = await Hoot.findByIdAndDelete(req.params.hootId);
+    res.status(200).json(deletedHoot);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+// As we did when creating hoots, we’ll first append req.user._id to req.body.author. This updates the form data that will be used to create the resource, and ensures that the logged in user is marked as the author of a comment.
+
+// Next we’ll call upon the Hoot model’s findById() method. The retrieved hoot is the parent document we wish to add a comment to.
+
+// Because comments are embedded inside hoot’s, the commentSchema has not been compiled into a model. As a result, we cannot call upon the create() method to produce a new comment. Instead, we’ll use the Array.prototype.push() method, provide it with req.body, and add the new comment data to the comments array inside the hoot document.
+
+// To save the comment to our database, we call upon the save() method of the hoot document instance.
+
+// After saving the hoot document, we locate the newComment using its position at the end of the hoot.comments array, append the author property with a user object, and issue the newComment as a JSON response.
+
+router.post("/:hootId/comments", async (req, res) => {
+  try {
+    req.body.author = req.user._id;
+    const hoot = await Hoot.findById(req.params.hootId);
+    hoot.comments.push(req.body);
+    await hoot.save();
+
+    // Find the newly created comment:
+    const newComment = hoot.comments[hoot.comments.length - 1];
+
+    newComment._doc.author = req.user;
+
+    // Respond with the newComment:
+    res.status(201).json(newComment);
   } catch (error) {
     res.status(500).json(error);
   }
