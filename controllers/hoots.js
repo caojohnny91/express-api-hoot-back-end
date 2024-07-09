@@ -143,4 +143,21 @@ router.post("/:hootId/comments", async (req, res) => {
   }
 });
 
+// Let’s breakdown what we’ll accomplish inside our controller function.
+// First we call upon the Hoot model’s findById() method. The retrieved hoot is the parent document that holds an array of comments. We’ll need to find the specific comment we wish to update within this array. To do so, we can use the MongooseDocumentArray.prototype.id() method. This method is called on the array of a document, and returns an embedded subdocument based on the provided ObjectId (req.params.commentId).
+// With the retrieved comment, we update its text property with req.body.text, before saving the parent document (hoot), and issuing a JSON response with a message of Ok
+
+router.put("/:hootId/comments/:commentId", async (req, res) => {
+  try {
+    const hoot = await Hoot.findById(req.params.hootId);
+    const comment = hoot.comments.id(req.params.commentId);
+    comment.text = req.body.text;
+    await hoot.save();
+    res.status(200).json({ message: "Ok" });
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+
 module.exports = router;
