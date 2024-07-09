@@ -29,4 +29,30 @@ router.post("/", async (req, res) => {
   }
 });
 
+// We’ll call upon the find({}) method of our Hoot model, retrieving all hoots from the database. When we call upon find({}), we’ll chain two additional methods to the end.
+// The first is the populate() method. We’ll use this to populate the author property of each hoot with a user object.
+// The second is the sort() method. We’ll use this to sort hoots in descending order, meaning the most recent entries will be at the at the top.
+// Once the new hoots are retrieved, we’ll send a JSON response containing the hoots array
+router.get("/", async (req, res) => {
+  try {
+    const hoots = await Hoot.find({})
+      .populate("author")
+      .sort({ createdAt: "desc" });
+    res.status(200).json(hoots);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+// We’ll call upon our Hoot model’s findById() method and pass in req.params.hootId. We’ll also call populate() on the end of our query to populate the author property of the hoot.
+// Once the new hoot is retrieved, we’ll send a JSON response with the hoot object.
+router.get("/:hootId", async (req, res) => {
+  try {
+    const hoot = await Hoot.findById(req.params.hootId).populate("author");
+    res.status(200).json(hoot);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
 module.exports = router;
