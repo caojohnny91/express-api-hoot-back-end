@@ -159,5 +159,23 @@ router.put("/:hootId/comments/:commentId", async (req, res) => {
   }
 });
 
+// First we call upon the Hoot model’s findById() method. The retrieved hoot is the parent document that holds an array of comments. We’ll need to remove a specific comment from this array.
+
+// To do so, we’ll make use of the MongooseArray.prototype.remove() method. This method is called on the array property of a document, and removes an embedded subdocument based on the provided query object ({ _id: req.params.commentId }).
+
+// After removing the subdocument, we save the parent hoot document, and issue a JSON response with a message of Ok
+
+// controllers/hoots.js
+
+router.delete("/:hootId/comments/:commentId", async (req, res) => {
+  try {
+    const hoot = await Hoot.findById(req.params.hootId);
+    hoot.comments.remove({ _id: req.params.commentId });
+    await hoot.save();
+    res.status(200).json({ message: "Ok" });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
 
 module.exports = router;
