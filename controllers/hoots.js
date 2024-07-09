@@ -33,6 +33,7 @@ router.post("/", async (req, res) => {
 // The first is the populate() method. We’ll use this to populate the author property of each hoot with a user object.
 // The second is the sort() method. We’ll use this to sort hoots in descending order, meaning the most recent entries will be at the at the top.
 // Once the new hoots are retrieved, we’ll send a JSON response containing the hoots array
+
 router.get("/", async (req, res) => {
   try {
     const hoots = await Hoot.find({})
@@ -46,10 +47,48 @@ router.get("/", async (req, res) => {
 
 // We’ll call upon our Hoot model’s findById() method and pass in req.params.hootId. We’ll also call populate() on the end of our query to populate the author property of the hoot.
 // Once the new hoot is retrieved, we’ll send a JSON response with the hoot object.
+
 router.get("/:hootId", async (req, res) => {
   try {
     const hoot = await Hoot.findById(req.params.hootId).populate("author");
     res.status(200).json(hoot);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+// First, we’ll retrieve the hoot we want to update from the database. We’ll do this using our Hoot model’s findById() method.
+// With our retrieved hoot, we need check that this user has permission to update the resource. We accomplish this using an if condition, comparing the hoot.author to _id of the user issuing the request (req.user._id). Remember, hoot.author contains the ObjectId of the user who created the hoot. If these values do not match, we will respond with a 403 status.
+// If the user has permission to update the resource, we’ll call upon our Hoot model’s findByIdAndUpdate() method.
+// When calling upon findByIdAndUpdate(), we pass in three arguments:
+// The first is the ObjectId (req.params.hootId) by which we will locate the hoot.
+// The second is the form data (req.body) that will be used to update the hoot document.
+// The third argument ({ new: true }) specifies that we want this method to return the updated document.
+// After updating the hoot, we’ll append a complete user object to the updatedHoot document (as we did in our create controller function).
+// As an extra layer of protection, we’ll use conditional rendering in our React app to limit access to this functionality so that only the author of a hoot can view the UI elements that allow editing.
+
+router.put("/:hootId", async (req, res) => {
+  try {
+    // Find the hoot:
+    const hoot = await Hoot.findById(req.params.hootId);
+
+    // Check permissions:
+    if (!hoot.author.equals(req.user._id)) {
+      return res.status(403).send("You're not allowed to do that!");
+    }
+
+    // Update hoot:
+    const updatedHoot = await Hoot.findByIdAndUpdate(
+      req.params.hootId,
+      req.body,
+      { new: true }
+    );
+
+    // Append req.user to the author property:
+    updatedHoot._doc.author = req.user;
+
+    // Issue JSON response:
+    res.status(200).json(updatedHoot);
   } catch (error) {
     res.status(500).json(error);
   }
